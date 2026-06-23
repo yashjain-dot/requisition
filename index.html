@@ -270,6 +270,152 @@ select.cell-in{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www
 </div>
 
 <script>
+
+// ── SUPABASE CONFIG ──────────────────────────────────────────
+const SUPA_URL = 'https://jwhehlxupdknalobocxd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3aGVobHh1cGRrbmFsb2JvY3hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5ODkyNjMsImV4cCI6MjA5NzU2NTI2M30.XDJ3GhWPe9O89p01wZO1V9JK4Fz3IxNZ6LgdrkHG8xk';
+
+async function supa(endpoint, method='GET', body=null){
+  const opts = {
+    method,
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method==='POST' ? 'return=representation' : 'return=minimal'
+    }
+  };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(SUPA_URL + '/rest/v1/' + endpoint, opts);
+  if(!res.ok){ const e=await res.text(); console.warn('Supabase error:', e); return null; }
+  if(method==='DELETE'||method==='PATCH') return {ok:true};
+  return res.json();
+}
+
+// ── PASSWORD HASHING ─────────────────────────────────────────
+async function hashPassword(password){
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray  = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── REQUISITION CRUD ─────────────────────────────────────────
+async function saveRequisition(req){
+  try{
+    const row = {
+      req_number:     req.id,
+      department:     req.dept,
+      requester_name: req.requester,
+      requester_email:req.req_email,
+      priority:       req.priority||'Normal',
+      date_needed:    req.date,
+      outlet:         req.outlet||null,
+      sublocation:    req.subloc||null,
+      remarks:        req.remarks||null,
+      status:         req.status||'PENDING HOD',
+      est_total_idr:  req.items.reduce((s,it)=>s+(it.price||0)*it.qty,0)
+    };
+    const result = await supa('requisitions', 'POST', row);
+    if(result){
+      for(const it of req.items){
+        await supa('item_lines','POST',{
+          req_number:    req.id,
+          item_name:     it.name,
+          category:      it.cat||'General',
+          gl_code:       it.gl||'621160',
+          gl_name:       it.gln||'General Supplies',
+          qty_requested: it.qty,
+          unit:          it.unit,
+          unit_cost_idr: it.price||0,
+          hod_decision:  'pending'
+        });
+      }
+    }
+    return {ok:!!result};
+  }catch(e){ console.warn('saveRequisition error:',e); return {ok:false}; }
+}
+
+async function loadRequisitions(role, dept, email){
+  try{
+    let q = 'requisitions?order=created_at.desc&select=*';
+    if(role==='requester') q += '&requester_email=eq.'+encodeURIComponent(email);
+    else if(dept && dept!=='ALL') q += '&department=eq.'+dept;
+    const reqs = await supa(q);
+    if(!reqs||!reqs.length) return null;
+    for(const r of reqs){
+      const lines = await supa('item_lines?req_number=eq.'+encodeURIComponent(r.req_number)+'&select=*');
+      r.id    = r.req_number;
+      r.dept  = r.department;
+      r.requester = r.requester_name;
+      r.req_email = r.requester_email;
+      r.date  = r.date_needed||r.created_at?.split('T')[0];
+      r.subloc= r.sublocation;
+      r.hod_name = r.hod_name;
+      r.store_name = r.store_issued_by;
+      r.store_date = r.store_issue_date?.split('T')[0];
+      r.cc_name = r.cc_posted_by;
+      r.cc_date = r.cc_posted_date?.split('T')[0];
+      r.items = (lines||[]).map(l=>({
+        name:l.item_name, cat:l.category, gl:l.gl_code, gln:l.gl_name,
+        qty:l.qty_requested, qty_requested:l.qty_requested,
+        approvedQty:l.qty_approved||l.qty_requested,
+        issuedQty:l.qty_issued||0,
+        unit:l.unit||'pcs', price:l.unit_cost_idr||0,
+        cost:l.unit_cost_idr||0,
+        decision:l.hod_decision||'pending',
+        line_total:l.line_total_idr||0
+      }));
+    }
+    return reqs;
+  }catch(e){ console.warn('loadRequisitions error:',e); return null; }
+}
+
+async function updateReq(reqId, fields){
+  try{
+    await supa('requisitions?req_number=eq.'+encodeURIComponent(reqId),'PATCH',fields);
+    return {ok:true};
+  }catch(e){ console.warn('updateReq error:',e); return {ok:false}; }
+}
+
+async function updateItemLine(reqId, itemName, fields){
+  try{
+    await supa('item_lines?req_number=eq.'+encodeURIComponent(reqId)
+      +'&item_name=eq.'+encodeURIComponent(itemName),'PATCH',fields);
+  }catch(e){ console.warn('updateItemLine error:',e); }
+}
+
+async function supaAudit(reqId, action, doneBy, role, notes){
+  try{
+    await supa('audit_log','POST',{
+      req_number:reqId, action, done_by:doneBy, role, notes
+    });
+  }catch(e){ /* audit failure non-critical */ }
+}
+
+// ── SUPABASE STATUS CHECK ─────────────────────────────────────
+(async function checkSupabase(){
+  try{
+    const r = await Promise.race([
+      supa('staff?select=count&limit=1'),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),5000))
+    ]);
+    const el = document.getElementById('supa_status');
+    if(el){
+      if(r){
+        el.style.background='#EAF5EF';el.style.color='#1D6B4E';el.style.borderColor='#A8D5BC';
+        el.innerHTML='<span style="color:#1D6B4E">●</span> Connected to Supabase — data saves live. Individual login active.';
+      } else {
+        el.style.background='#FBF4E0';el.style.color='#8C6914';
+        el.innerHTML='<span style="color:#8C6914">●</span> Running in offline mode — data saves locally only.';
+      }
+    }
+  }catch(e){
+    const el=document.getElementById('supa_status');
+    if(el){ el.style.background='#FBF4E0'; el.innerHTML='<span>●</span> Offline mode'; }
+  }
+})();
+
 // Email service configuration (split for security)
 const _k1 = "xkeysib-fac81ab0f42ecdf3a";
 const _k2 = "b5ce9b6eff9724d40a00af4d40d443";
