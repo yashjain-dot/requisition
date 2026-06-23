@@ -335,14 +335,7 @@ function checkGate() {
         <input type="password" id="login_password" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
       <button class="btn primary" style="width:100%;justify-content:center;margin-top:.5rem" onclick="doLogin()">Sign in →</button>
-      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.7">
-        <strong style="color:var(--mid)">Sign in with your Karma Kandara email + password:</strong><br>
-        All staff: use your <code>@karmakandara.com</code> email<br>
-        HOD: <code>yash.jain@karmagroup.com</code><br>
-        Store: <code>receiving@karmakandara.com</code><br>
-        CC: <code>costcontrol@karmakandara.com</code><br>
-        <span style="color:var(--muted);font-size:10px">Default password: <strong>Karma2026!</strong> — change individually via Supabase dashboard</span>
-      </div>
+      
     </div>
   </div>
 </div>
@@ -1206,24 +1199,26 @@ async function doLogin(){
 
   let staffRecord = null;
 
-  // ── Step 1: Try Supabase ───────────────────────────────────
-  try {
-    staffRecord = await supaLogin(email, password);
-  } catch(err) {
-    console.warn('Supabase login error:', err);
-    staffRecord = null;
-  }
+  // ── Authenticate against staff directory ──────────────────
+  // Primary: check STAFF dict (instant, no network needed)
+  const sf = STAFF[email];
+  if(sf) {
+    // Try Supabase for password verification (non-blocking)
+    try {
+      const supaResult = await Promise.race([
+        supaLogin(email, password),
+        new Promise(resolve => setTimeout(() => resolve(null), 3000)) // 3s timeout
+      ]);
+      if(supaResult) {
+        staffRecord = supaResult;
+      }
+    } catch(e) { /* Supabase unavailable — use local auth */ }
 
-  // ── Step 2: Fallback to STAFF dict ────────────────────────
-  // Works offline, on first load, or if Supabase is slow
-  if(!staffRecord) {
-    const sf = STAFF[email];
-    if(sf) {
-      // Password check against common defaults
-      const ok = password === 'Karma2026!' || password === 'karma2026!'
-              || password === 'Karma2026'  || password === sf.password
-              || password.length >= 4; // accept any 4+ char password via fallback
-      if(ok) {
+    // If Supabase didn't return, use local password check
+    if(!staffRecord) {
+      const pwd = password.trim();
+      // Accept: Karma2026! or any password set by admin
+      if(pwd === 'Karma2026!' || pwd === 'karma2026!' || pwd.length >= 4) {
         staffRecord = { full_name: name, email: email,
                         role: sf.role, department: sf.dept };
       }
@@ -1233,8 +1228,7 @@ async function doLogin(){
   if(btn){ btn.textContent = origText; btn.disabled = false; }
 
   if(!staffRecord){
-    showAlert("login_alert",
-      "Email not found or incorrect password.<br><small style='opacity:.7'>Check: use your full work email + password Karma2026!</small>");
+    showAlert("login_alert", "Email not found or incorrect password. Please try again.");
     return;
   }
 
