@@ -255,16 +255,13 @@ const KARMA_PASSWORD = 'Karma2026!';
 
 // Ensure login page is visible on load (fixes blank screen on refresh)
 window.addEventListener('DOMContentLoaded', function() {
-  // Make sure login page is active on fresh load
-  const loginPage = document.getElementById('pg_login');
-  if (loginPage) {
-    loginPage.classList.add('active');
-  }
   // Focus password field if gate is showing
   const pwd = document.getElementById('gate_pwd');
   if (pwd) {
     setTimeout(() => pwd.focus(), 100);
   }
+  // NOTE: pg_login stays active via HTML class — do NOT force it here
+  // showPage() handles all routing after login
 });
 
 function checkGate() {
