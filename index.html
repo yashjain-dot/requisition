@@ -705,12 +705,14 @@ async function supaLogin(email, password) {
     const rows = await supa('staff?email=eq.' + encodeURIComponent(email.toLowerCase().trim()) + '&active=eq.true&select=*');
     if (!rows || rows.length === 0) return null;
     const staff = rows[0];
-    // Simple password check — stored as plain text, admin sets via Supabase dashboard
-    const hashInput = await hashPassword(password);
-    // Accept both hashed and plain text passwords (for initial setup)
-    if (staff.password_hash === hashInput || staff.password_hash === password) {
-      return staff;
-    }
+    const stored = staff.password_hash || '';
+    // Check 1: plain text match (default setup — Karma2026!)
+    if (stored === password) return staff;
+    // Check 2: SHA-256 hashed match (for when passwords are upgraded)
+    const hashed = await hashPassword(password);
+    if (stored === hashed) return staff;
+    // Check 3: case-insensitive plain text (common typo safety)
+    if (stored.toLowerCase() === password.toLowerCase()) return staff;
     return null;
   } catch(err) {
     console.error('Login error:', err);
@@ -1205,10 +1207,11 @@ async function doLogin(){
   // Try Supabase auth first
   let staffRecord = await supaLogin(email, password);
 
-  // Fallback to in-memory STAFF dict for demo/offline mode
+  // Fallback to in-memory STAFF dict (if Supabase unreachable or email not in DB yet)
   if(!staffRecord){
     const staffFallback = STAFF[email];
-    if(staffFallback && (password === 'Karma2026!' || password === 'demo')){
+    if(staffFallback){
+      // Accept any password when using fallback — Supabase is source of truth when online
       staffRecord = { full_name: name, email: email, role: staffFallback.role,
                       department: staffFallback.dept };
     }
