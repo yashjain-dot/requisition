@@ -1,6 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+// Gate password — runs immediately before page renders
+var KARMA_PASSWORD = 'Karma2026!';
+function checkGate(){
+  var v = document.getElementById('gate_pwd').value;
+  if(v === KARMA_PASSWORD){
+    try{ sessionStorage.setItem('karma_auth','true'); }catch(e){}
+    var g = document.getElementById('pg_gate');
+    g.style.opacity='0';
+    g.style.transition='opacity 0.3s';
+    setTimeout(function(){ g.style.display='none'; }, 300);
+    document.getElementById('gate_error').style.display='none';
+  } else {
+    document.getElementById('gate_error').style.display='block';
+    document.getElementById('gate_pwd').value='';
+    document.getElementById('gate_pwd').focus();
+  }
+}
+window.addEventListener('load', function(){
+  try{
+    if(sessionStorage.getItem('karma_auth')==='true'){
+      var g=document.getElementById('pg_gate');
+      if(g) g.style.display='none';
+    }
+  }catch(e){}
+  var p=document.getElementById('gate_pwd');
+  if(p) p.addEventListener('keydown',function(e){ if(e.key==='Enter') checkGate(); });
+});
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Karma Kandara — Requisition System</title>
@@ -1720,26 +1750,5 @@ async function saveNewPassword(){
   </div>
 </div>
 
-<script>
-const KARMA_PASSWORD = 'Karma2026!';
-(function(){
-  try{ if(sessionStorage.getItem('karma_auth')==='true') document.getElementById('pg_gate').style.display='none'; }catch(e){}
-})();
-function checkGate(){
-  const v=document.getElementById('gate_pwd').value;
-  const e=document.getElementById('gate_error');
-  if(v===KARMA_PASSWORD){
-    try{sessionStorage.setItem('karma_auth','true');}catch(ex){}
-    const g=document.getElementById('pg_gate');
-    g.style.transition='opacity .3s';g.style.opacity='0';
-    setTimeout(()=>g.style.display='none',300);
-    if(e)e.style.display='none';
-  } else {
-    if(e)e.style.display='block';
-    document.getElementById('gate_pwd').value='';
-    document.getElementById('gate_pwd').focus();
-  }
-}
-</script>
 </body>
 </html>
