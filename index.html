@@ -942,29 +942,33 @@ function showToast(msg, type='info') {
 // ── STAFF DIRECTORY ────────────────────────────────────────
 const STAFF = {
   // ── KARMA KANDARA — ALL REAL ACCOUNTS ──────────────────────
+  // Default password hash = SHA-256 of "Karma2026!"
+  // Each person should change their password after first login
+  // To update: admin runs set_passwords.sql in Supabase,
+  //            then updates hash here too (or use Supabase-only auth)
   // REQUESTERS
-  "gc@karmakandara.com":               {name:"Finance Team",      role:"requester", dept:"FIN", color:"#2C6B8C"},
-  "hkadmin@karmakandara.com":          {name:"HK Admin",          role:"requester", dept:"HK",  color:"#B85C38"},
-  "fbadmin@karmakandara.com":          {name:"FB Admin",          role:"requester", dept:"FB",  color:"#1D6B4E"},
-  "asstfom@karmakandara.com":          {name:"FO Admin",          role:"requester", dept:"FO",  color:"#1A4D8C"},
-  "engineerclerk@karmakandara.com":    {name:"Engineering Admin", role:"requester", dept:"ENG", color:"#8C6914"},
-  "spareception@karmakandara.com":     {name:"Spa Reception",     role:"requester", dept:"SPA", color:"#6B3B8C"},
-  "souschef@karmakandara.com":         {name:"Sous Chef",         role:"requester", dept:"KIT", color:"#8C3E1E"},
-  "hr.admin@karmakandara.com":         {name:"HR Admin",          role:"requester", dept:"HR",  color:"#4A8C3E"},
+  "gc@karmakandara.com":               {name:"Finance Team",      role:"requester", dept:"FIN", color:"#2C6B8C", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "hkadmin@karmakandara.com":          {name:"HK Admin",          role:"requester", dept:"HK",  color:"#B85C38", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "fbadmin@karmakandara.com":          {name:"FB Admin",          role:"requester", dept:"FB",  color:"#1D6B4E", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "asstfom@karmakandara.com":          {name:"FO Admin",          role:"requester", dept:"FO",  color:"#1A4D8C", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "engineerclerk@karmakandara.com":    {name:"Engineering Admin", role:"requester", dept:"ENG", color:"#8C6914", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "spareception@karmakandara.com":     {name:"Spa Reception",     role:"requester", dept:"SPA", color:"#6B3B8C", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "souschef@karmakandara.com":         {name:"Sous Chef",         role:"requester", dept:"KIT", color:"#8C3E1E", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "hr.admin@karmakandara.com":         {name:"HR Admin",          role:"requester", dept:"HR",  color:"#4A8C3E", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
   // HODs
-  "housekeeper@karmakandara.com":      {name:"Housekeeper HOD",   role:"hod",       dept:"HK",  color:"#B85C38"},
-  "fbmanager@karmakandara.com":        {name:"FB Manager",        role:"hod",       dept:"FB",  color:"#1D6B4E"},
-  "bevmgr@karmakandara.com":           {name:"Beverage Manager",  role:"hod",       dept:"FB",  color:"#1D6B4E"},
-  "fom@karmakandara.com":              {name:"Front Office Mgr",  role:"hod",       dept:"FO",  color:"#1A4D8C"},
-  "engineer@karmakandara.com":         {name:"Chief Engineer",    role:"hod",       dept:"ENG", color:"#8C6914"},
-  "spamgr@karmakandara.com":           {name:"Spa Manager",       role:"hod",       dept:"SPA", color:"#6B3B8C"},
-  "execsouschef@karmakandara.com":     {name:"Exec Sous Chef",    role:"hod",       dept:"KIT", color:"#8C3E1E"},
-  "finance@karmakandara.com":          {name:"Finance HOD",       role:"hod",       dept:"FIN", color:"#2C6B8C"},
-  "asst.dohr@karmakandara.com":        {name:"Asst DOHR",         role:"hod",       dept:"HR",  color:"#4A8C3E"},
-  "yash.jain@karmagroup.com":          {name:"Yash Jain",         role:"admin",     dept:"ALL", color:"#B85C38"},
+  "housekeeper@karmakandara.com":      {name:"Housekeeper HOD",   role:"hod",       dept:"HK",  color:"#B85C38", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "fbmanager@karmakandara.com":        {name:"FB Manager",        role:"hod",       dept:"FB",  color:"#1D6B4E", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "bevmgr@karmakandara.com":           {name:"Beverage Manager",  role:"hod",       dept:"FB",  color:"#1D6B4E", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "fom@karmakandara.com":              {name:"Front Office Mgr",  role:"hod",       dept:"FO",  color:"#1A4D8C", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "engineer@karmakandara.com":         {name:"Chief Engineer",    role:"hod",       dept:"ENG", color:"#8C6914", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "spamgr@karmakandara.com":           {name:"Spa Manager",       role:"hod",       dept:"SPA", color:"#6B3B8C", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "execsouschef@karmakandara.com":     {name:"Exec Sous Chef",    role:"hod",       dept:"KIT", color:"#8C3E1E", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "finance@karmakandara.com":          {name:"Finance HOD",       role:"hod",       dept:"FIN", color:"#2C6B8C", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "asst.dohr@karmakandara.com":        {name:"Asst DOHR",         role:"hod",       dept:"HR",  color:"#4A8C3E", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "yash.jain@karmagroup.com":          {name:"Yash Jain",         role:"admin",     dept:"ALL", color:"#B85C38", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
   // STORE & CC
-  "receiving@karmakandara.com":        {name:"Receiving Team",    role:"store",     dept:"ALL", color:"#2C5F8C"},
-  "costcontrol@karmakandara.com":      {name:"Cost Control",      role:"cc",        dept:"ALL", color:"#4A6B3E"},
+  "receiving@karmakandara.com":        {name:"Receiving Team",    role:"store",     dept:"ALL", color:"#2C5F8C", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
+  "costcontrol@karmakandara.com":      {name:"Cost Control",      role:"cc",        dept:"ALL", color:"#4A6B3E", hash:"6cc334837d8e187ee9d21c029a64f210914efb7ed75a84b44c2d004a2ab12c0d"},
 };
 
 const ROLE_LABELS = {requester:"Requester",hod:"Dept Head (HOD)",store:"Store Keeper",cc:"Cost Controller",admin:"Admin"};
@@ -1186,7 +1190,7 @@ function genReqId(){ const d=new Date(); return "REQ-"+d.getFullYear()+String(d.
 function statusBadge(s){ const m={["PENDING HOD"]:"b-pending",APPROVED:"b-approved",REJECTED:"b-rejected",ISSUED:"b-issued",CLOSED:"b-closed","PARTIALLY APPROVED":"b-partial"}; return `<span class="badge ${m[s]||'b-pending'}">${s}</span>`; }
 
 // ── LOGIN ──────────────────────────────────────────────────
-function doLogin(){
+async function doLogin(){
   const email    = document.getElementById("login_email").value.trim().toLowerCase();
   const name     = document.getElementById("login_name").value.trim();
   const password = document.getElementById("login_password").value;
@@ -1196,70 +1200,45 @@ function doLogin(){
   if(!name)     { showAlert("login_alert","Please enter your name.");     return; }
   if(!password) { showAlert("login_alert","Please enter your password."); return; }
 
-  // Check email exists in STAFF dict first (instant)
+  // Look up email
   const sf = STAFF[email];
   if(!sf){
-    showAlert("login_alert","Email not recognised. Please use your Karma work email.");
+    showAlert("login_alert","Email not recognised. Use your Karma work email.");
     return;
   }
 
-  const btn = document.querySelector("#pg_login .btn.primary");
-  if(btn){ btn.textContent="Signing in…"; btn.disabled=true; }
+  // Hash the input password and compare to stored hash
+  const inputHash = await hashPassword(password);
+  if(inputHash !== sf.hash){
+    showAlert("login_alert","Incorrect password. Please try again.");
+    return;
+  }
 
-  // Hash password then verify against Supabase
-  hashPassword(password).then(async hashed => {
-    let verified = false;
+  // ✓ Login success — set current user
+  currentUser = { name, email, role:sf.role, dept:sf.dept, color:sf.color||"#B85C38" };
 
-    try {
-      // Verify against Supabase (with 5s timeout)
-      const rows = await Promise.race([
-        supa("staff?email=eq."+encodeURIComponent(email)+"&active=eq.true&select=password_hash,role,department,full_name"),
-        new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),5000))
-      ]);
-      if(rows && rows.length > 0){
-        const stored = rows[0].password_hash || "";
-        // Accept: hashed match OR plain text match (for initial Karma2026! setup)
-        if(stored === hashed || stored === password){
-          verified = true;
-        }
-      }
-    } catch(e){
-      // Supabase unreachable — allow login with Karma2026! as safety fallback
-      if(password === "Karma2026!") verified = true;
-    }
+  // Update header
+  document.getElementById("user_chip").style.display = "flex";
+  document.getElementById("u_name").textContent = name;
+  const av = document.getElementById("u_avatar");
+  av.textContent = initials(name);
+  av.style.background = sf.color || "#B85C38";
+  const rp = document.getElementById("u_role_label");
+  rp.textContent = ROLE_LABELS[sf.role] || sf.role;
+  rp.style.background = ROLE_COLORS[sf.role] || "#EEE";
+  rp.style.color = ROLE_TC[sf.role] || "#333";
+  const expBtn = document.getElementById("export_btn");
+  if(expBtn) expBtn.style.display = ["admin","hod","cc"].includes(sf.role) ? "block" : "none";
 
-    if(btn){ btn.textContent="Sign in →"; btn.disabled=false; }
-
-    if(!verified){
-      showAlert("login_alert","Incorrect password. Please try again.");
-      return;
-    }
-
-    // ✓ Login success
-    currentUser = { name, email, role:sf.role, dept:sf.dept, color:sf.color||"#B85C38" };
-
-    // Update header
-    document.getElementById("user_chip").style.display="flex";
-    document.getElementById("u_name").textContent=name;
-    const av=document.getElementById("u_avatar");
-    av.textContent=initials(name); av.style.background=sf.color||"#B85C38";
-    const rp=document.getElementById("u_role_label");
-    rp.textContent=ROLE_LABELS[sf.role]||sf.role;
-    rp.style.background=ROLE_COLORS[sf.role]||"#EEE";
-    rp.style.color=ROLE_TC[sf.role]||"#333";
-    const expBtn=document.getElementById("export_btn");
-    if(expBtn) expBtn.style.display=["admin","hod","cc"].includes(sf.role)?"block":"none";
-
-    // Check if still using default password — prompt to change
-    if(password === "Karma2026!"){
-      showChangePasswordPrompt();
-      return;
-    }
-
-    // Route to role page
-    routeToRolePage(sf.role);
-  });
+  // Route to correct page
+  if(sf.role === "admin")          loadAdminPage();
+  else if(sf.role === "requester") loadRequesterPage();
+  else if(sf.role === "hod")       loadHODPage();
+  else if(sf.role === "store")     loadStorePage();
+  else if(sf.role === "cc")        loadCCPage();
+  else showAlert("login_alert","Role not configured. Contact admin.","error");
 }
+
 
 function routeToRolePage(role){
   if(role==="admin")          loadAdminPage();
@@ -1292,7 +1271,7 @@ async function loadRequesterPage(){
   document.getElementById("r_date").value=new Date().toISOString().split("T")[0];
   rResetItems();
   rShowSec(0); // show dashboard first
-  await loadRequesterDashboard();
+  try { await loadRequesterDashboard(); } catch(e){ console.warn('Req dash:', e); }
 }
 
 async function loadRequesterDashboard(){
@@ -1557,10 +1536,14 @@ function rReset(){ rResetItems(); rShowSec(1); }
 // HOD
 // ═══════════════════════════════════════════════════════════
 async function loadHODPage(){
-  // Try loading from Supabase
-  const liveReqs = await loadRequisitions('hod', currentUser.dept, currentUser.email);
-  if(liveReqs && liveReqs.length > 0) REQUISITIONS = liveReqs;
-  showPage("pg_hod");
+  showPage("pg_hod"); // show page FIRST — don't wait for Supabase
+  try {
+    const liveReqs = await Promise.race([
+      loadRequisitions('hod', currentUser.dept, currentUser.email),
+      new Promise(r=>setTimeout(()=>r(null),4000))
+    ]);
+    if(liveReqs && liveReqs.length > 0) REQUISITIONS = liveReqs;
+  } catch(e){ console.warn('HOD load:', e); }
   document.getElementById("h_dash_sub").textContent=`Logged in as ${currentUser.name} — ${currentUser.dept} department`;
   const myReqs=REQUISITIONS.filter(r=>r.dept===currentUser.dept||currentUser.dept==="ALL");
   const pending=myReqs.filter(r=>r.status==="PENDING HOD");
@@ -1699,9 +1682,14 @@ function hBackDash(){ loadHODPage(); }
 // STORE KEEPER
 // ═══════════════════════════════════════════════════════════
 async function loadStorePage(){
-  const liveReqs = await loadRequisitions('store', currentUser.dept, currentUser.email);
-  if(liveReqs && liveReqs.length > 0) REQUISITIONS = liveReqs;
-  showPage("pg_store");
+  showPage("pg_store"); // show page FIRST
+  try {
+    const liveReqs = await Promise.race([
+      loadRequisitions('store', currentUser.dept, currentUser.email),
+      new Promise(r=>setTimeout(()=>r(null),4000))
+    ]);
+    if(liveReqs && liveReqs.length > 0) REQUISITIONS = liveReqs;
+  } catch(e){ console.warn('Store load:', e); }
   document.getElementById("s_dash_sub").textContent=`Logged in as ${currentUser.name} — Store`;
   const ready=REQUISITIONS.filter(r=>["APPROVED","PARTIALLY APPROVED"].includes(r.status));
   const issued=REQUISITIONS.filter(r=>["ISSUED","CLOSED"].includes(r.status));
@@ -1812,9 +1800,14 @@ function sBackDash(){ loadStorePage(); }
 // COST CONTROLLER
 // ═══════════════════════════════════════════════════════════
 async function loadCCPage(){
-  const liveReqs = await loadRequisitions('cc', currentUser.dept, currentUser.email);
-  if(liveReqs && liveReqs.length > 0) REQUISITIONS = liveReqs;
-  showPage("pg_cc");
+  showPage("pg_cc"); // show page FIRST
+  try {
+    const liveReqs = await Promise.race([
+      loadRequisitions('cc', currentUser.dept, currentUser.email),
+      new Promise(r=>setTimeout(()=>r(null),4000))
+    ]);
+    if(liveReqs && liveReqs.length > 0) REQUISITIONS = liveReqs;
+  } catch(e){ console.warn('CC load:', e); }
   document.getElementById("c_dash_sub").textContent=`Logged in as ${currentUser.name} — Cost Control`;
   const pending=REQUISITIONS.filter(r=>r.status==="ISSUED");
   const posted=REQUISITIONS.filter(r=>r.status==="CLOSED");
@@ -1936,9 +1929,14 @@ async function loadAdminPage(){
   document.getElementById("adm_sub").textContent =
     "Logged in as " + currentUser.name + " — Full system admin";
 
-  // Load ALL requisitions from Supabase
-  const live = await loadRequisitions('hod','ALL', currentUser.email);
-  if(live && live.length > 0) REQUISITIONS = live;
+  // Load ALL requisitions from Supabase (with timeout)
+  try {
+    const live = await Promise.race([
+      loadRequisitions('hod','ALL', currentUser.email),
+      new Promise(r=>setTimeout(()=>r(null),4000))
+    ]);
+    if(live && live.length > 0) REQUISITIONS = live;
+  } catch(e){ console.warn('Admin load:', e); }
 
   const reqs = REQUISITIONS;
   window._admReqs = reqs;
