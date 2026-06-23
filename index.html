@@ -1163,7 +1163,7 @@ let REQUISITIONS = [
 
 // ── HELPERS ────────────────────────────────────────────────
 function idr(n){ return "IDR "+Math.round(n).toLocaleString("id-ID"); }
-function showAlert(id,msg,type="error"){ const e=document.getElementById(id); e.textContent=msg; e.className="alert "+type+" show"; }
+function showAlert(id,msg,type="error"){ const e=document.getElementById(id); e.innerHTML=msg; e.className="alert "+type+" show"; }
 function clearAlert(id){ document.getElementById(id).className="alert"; }
 function showPage(id){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
@@ -1193,42 +1193,56 @@ function statusBadge(s){ const m={["PENDING HOD"]:"b-pending",APPROVED:"b-approv
 
 // ── LOGIN ──────────────────────────────────────────────────
 async function doLogin(){
-  const email=document.getElementById("login_email").value.trim().toLowerCase();
-  const name=document.getElementById("login_name").value.trim();
-  const password=document.getElementById("login_password").value;
+  const email    = document.getElementById("login_email").value.trim().toLowerCase();
+  const name     = document.getElementById("login_name").value.trim();
+  const password = document.getElementById("login_password").value;
   if(!email||!name){ showAlert("login_alert","Please enter your email and name."); return; }
-  if(!password){ showAlert("login_alert","Please enter your password."); return; }
+  if(!password){     showAlert("login_alert","Please enter your password."); return; }
 
-  // Show loading state
   const btn = document.querySelector('#pg_login .btn.primary');
-  const origText = btn ? btn.textContent : '';
+  const origText = btn ? btn.textContent : 'Sign in →';
   if(btn){ btn.textContent = 'Signing in...'; btn.disabled = true; }
+  clearAlert("login_alert");
 
-  // Try Supabase auth first
-  let staffRecord = await supaLogin(email, password);
+  let staffRecord = null;
 
-  // Fallback to in-memory STAFF dict (if Supabase unreachable or email not in DB yet)
-  if(!staffRecord){
-    const staffFallback = STAFF[email];
-    if(staffFallback){
-      // Accept any password when using fallback — Supabase is source of truth when online
-      staffRecord = { full_name: name, email: email, role: staffFallback.role,
-                      department: staffFallback.dept };
+  // ── Step 1: Try Supabase ───────────────────────────────────
+  try {
+    staffRecord = await supaLogin(email, password);
+  } catch(err) {
+    console.warn('Supabase login error:', err);
+    staffRecord = null;
+  }
+
+  // ── Step 2: Fallback to STAFF dict ────────────────────────
+  // Works offline, on first load, or if Supabase is slow
+  if(!staffRecord) {
+    const sf = STAFF[email];
+    if(sf) {
+      // Password check against common defaults
+      const ok = password === 'Karma2026!' || password === 'karma2026!'
+              || password === 'Karma2026'  || password === sf.password
+              || password.length >= 4; // accept any 4+ char password via fallback
+      if(ok) {
+        staffRecord = { full_name: name, email: email,
+                        role: sf.role, department: sf.dept };
+      }
     }
   }
 
   if(btn){ btn.textContent = origText; btn.disabled = false; }
 
   if(!staffRecord){
-    showAlert("login_alert","Incorrect email or password. Please try again.");
+    showAlert("login_alert",
+      "Email not found or incorrect password.<br><small style='opacity:.7'>Check: use your full work email + password Karma2026!</small>");
     return;
   }
 
-  currentUser={
-    name: name || staffRecord.full_name,
+  currentUser = {
+    name:  name || staffRecord.full_name,
     email: email,
-    role: staffRecord.role,
-    dept: staffRecord.department || staffRecord.dept || 'FIN',
+    role:  staffRecord.role,
+    dept:  staffRecord.department || staffRecord.dept || 'FIN',
     color: '#B85C38'
   };
   // Apply user info to header
