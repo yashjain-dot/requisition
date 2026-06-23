@@ -305,7 +305,8 @@ function checkGate() {
       <div id="u_role_label" class="role-pill"></div>
     </div>
     <button id="export_btn" onclick="exportToExcel()" style="display:none;margin-left:8px;padding:3px 10px;border:1px solid #444;border-radius:20px;background:none;color:#7EC8A4;font-size:10px;cursor:pointer" title="Export all requisitions to CSV">⬇ Export</button>
-    <button onclick="logout()" style="margin-left:6px;padding:3px 10px;border:1px solid #444;border-radius:20px;background:none;color:var(--muted);font-size:10px;cursor:pointer">Sign out</button>
+    <button onclick="showChangePasswordModal()" style="margin-left:6px;padding:3px 10px;border:1px solid #444;border-radius:20px;background:none;color:#7EC8A4;font-size:10px;cursor:pointer" title="Change your password">🔒 Password</button>
+    <button onclick="logout()" style="margin-left:4px;padding:3px 10px;border:1px solid #444;border-radius:20px;background:none;color:var(--muted);font-size:10px;cursor:pointer">Sign out</button>
   </div>
 </header>
 
@@ -1185,88 +1186,89 @@ function genReqId(){ const d=new Date(); return "REQ-"+d.getFullYear()+String(d.
 function statusBadge(s){ const m={["PENDING HOD"]:"b-pending",APPROVED:"b-approved",REJECTED:"b-rejected",ISSUED:"b-issued",CLOSED:"b-closed","PARTIALLY APPROVED":"b-partial"}; return `<span class="badge ${m[s]||'b-pending'}">${s}</span>`; }
 
 // ── LOGIN ──────────────────────────────────────────────────
-async function doLogin(){
+function doLogin(){
   const email    = document.getElementById("login_email").value.trim().toLowerCase();
   const name     = document.getElementById("login_name").value.trim();
   const password = document.getElementById("login_password").value;
-  if(!email||!name){ showAlert("login_alert","Please enter your email and name."); return; }
-  if(!password){     showAlert("login_alert","Please enter your password."); return; }
 
-  const btn = document.querySelector('#pg_login .btn.primary');
-  const origText = btn ? btn.textContent : 'Sign in →';
-  if(btn){ btn.textContent = 'Signing in...'; btn.disabled = true; }
   clearAlert("login_alert");
+  if(!email)    { showAlert("login_alert","Please enter your email.");    return; }
+  if(!name)     { showAlert("login_alert","Please enter your name.");     return; }
+  if(!password) { showAlert("login_alert","Please enter your password."); return; }
 
-  let staffRecord = null;
-
-  // ── Authenticate against staff directory ──────────────────
-  // Primary: check STAFF dict (instant, no network needed)
+  // Check email exists in STAFF dict first (instant)
   const sf = STAFF[email];
-  if(sf) {
-    // Try Supabase for password verification (non-blocking)
-    try {
-      const supaResult = await Promise.race([
-        supaLogin(email, password),
-        new Promise(resolve => setTimeout(() => resolve(null), 3000)) // 3s timeout
-      ]);
-      if(supaResult) {
-        staffRecord = supaResult;
-      }
-    } catch(e) { /* Supabase unavailable — use local auth */ }
-
-    // If Supabase didn't return, use local password check
-    if(!staffRecord) {
-      const pwd = password.trim();
-      // Accept: Karma2026! or any password set by admin
-      if(pwd === 'Karma2026!' || pwd === 'karma2026!' || pwd.length >= 4) {
-        staffRecord = { full_name: name, email: email,
-                        role: sf.role, department: sf.dept };
-      }
-    }
-  }
-
-  if(btn){ btn.textContent = origText; btn.disabled = false; }
-
-  if(!staffRecord){
-    showAlert("login_alert", "Email not found or incorrect password. Please try again.");
+  if(!sf){
+    showAlert("login_alert","Email not recognised. Please use your Karma work email.");
     return;
   }
 
-  currentUser = {
-    name:  name || staffRecord.full_name,
-    email: email,
-    role:  staffRecord.role,
-    dept:  staffRecord.department || staffRecord.dept || 'FIN',
-    color: '#B85C38'
-  };
-  // Apply user info to header
-  document.getElementById("user_chip").style.display="flex";
-  document.getElementById("u_name").textContent=name;
-  document.getElementById("u_avatar").textContent=initials(name);
-  document.getElementById("u_avatar").style.background=staff.color;
-  const rp=document.getElementById("u_role_label");
-  rp.textContent=ROLE_LABELS[staff.role];
-  rp.style.background=ROLE_COLORS[staff.role];
-  rp.style.color=ROLE_TC[staff.role];
-  // Route to correct page
-  // Clear any stale alert from previous session
-  const la = document.getElementById("login_alert");
-  if (la) la.className = "alert";
+  const btn = document.querySelector("#pg_login .btn.primary");
+  if(btn){ btn.textContent="Signing in…"; btn.disabled=true; }
 
-  // Show export button for HOD and CC
-  const expBtn = document.getElementById('export_btn');
-  if(expBtn) expBtn.style.display = (staff.role==='hod'||staff.role==='cc'||staff.role==='admin') ? 'block' : 'none';
+  // Hash password then verify against Supabase
+  hashPassword(password).then(async hashed => {
+    let verified = false;
 
-  if(staff.role==="admin")     loadAdminPage();
-  else if(staff.role==="requester") loadRequesterPage();
-  else if(staff.role==="hod")  loadHODPage();
-  else if(staff.role==="store")loadStorePage();
-  else if(staff.role==="cc")   loadCCPage();
-  else {
-    showPage("pg_login");
-    showAlert("login_alert","Role not recognised. Please contact admin.","error");
-  }
+    try {
+      // Verify against Supabase (with 5s timeout)
+      const rows = await Promise.race([
+        supa("staff?email=eq."+encodeURIComponent(email)+"&active=eq.true&select=password_hash,role,department,full_name"),
+        new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),5000))
+      ]);
+      if(rows && rows.length > 0){
+        const stored = rows[0].password_hash || "";
+        // Accept: hashed match OR plain text match (for initial Karma2026! setup)
+        if(stored === hashed || stored === password){
+          verified = true;
+        }
+      }
+    } catch(e){
+      // Supabase unreachable — allow login with Karma2026! as safety fallback
+      if(password === "Karma2026!") verified = true;
+    }
+
+    if(btn){ btn.textContent="Sign in →"; btn.disabled=false; }
+
+    if(!verified){
+      showAlert("login_alert","Incorrect password. Please try again.");
+      return;
+    }
+
+    // ✓ Login success
+    currentUser = { name, email, role:sf.role, dept:sf.dept, color:sf.color||"#B85C38" };
+
+    // Update header
+    document.getElementById("user_chip").style.display="flex";
+    document.getElementById("u_name").textContent=name;
+    const av=document.getElementById("u_avatar");
+    av.textContent=initials(name); av.style.background=sf.color||"#B85C38";
+    const rp=document.getElementById("u_role_label");
+    rp.textContent=ROLE_LABELS[sf.role]||sf.role;
+    rp.style.background=ROLE_COLORS[sf.role]||"#EEE";
+    rp.style.color=ROLE_TC[sf.role]||"#333";
+    const expBtn=document.getElementById("export_btn");
+    if(expBtn) expBtn.style.display=["admin","hod","cc"].includes(sf.role)?"block":"none";
+
+    // Check if still using default password — prompt to change
+    if(password === "Karma2026!"){
+      showChangePasswordPrompt();
+      return;
+    }
+
+    // Route to role page
+    routeToRolePage(sf.role);
+  });
 }
+
+function routeToRolePage(role){
+  if(role==="admin")          loadAdminPage();
+  else if(role==="requester") loadRequesterPage();
+  else if(role==="hod")       loadHODPage();
+  else if(role==="store")     loadStorePage();
+  else if(role==="cc")        loadCCPage();
+}
+
 
 function logout(){
   currentUser=null;
@@ -2143,6 +2145,86 @@ function admReject(){
 function admBackDash(){
   loadAdminPage();
 }
+
+// ══════════════════════════════════════════════════════════════
+// PASSWORD MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+function showChangePasswordPrompt(){
+  const modal = document.getElementById("pwd_modal");
+  if(!modal) { routeToRolePage(currentUser.role); return; }
+  modal.style.display = "flex";
+  document.getElementById("pwd_modal_sub").textContent =
+    "You are using the default password. Please set a personal password for security.";
+  document.getElementById("pwd_skip_btn").style.display = "inline-flex";
+  document.getElementById("pwd_alert").className = "alert";
+  document.getElementById("pwd_new").value = "";
+  document.getElementById("pwd_confirm").value = "";
+}
+
+function showChangePasswordModal(){
+  // Called from header "Change password" option
+  const modal = document.getElementById("pwd_modal");
+  if(!modal) return;
+  modal.style.display = "flex";
+  document.getElementById("pwd_modal_sub").textContent =
+    "Changing password for: " + currentUser.email;
+  document.getElementById("pwd_skip_btn").style.display = "none";
+  document.getElementById("pwd_alert").className = "alert";
+  document.getElementById("pwd_new").value = "";
+  document.getElementById("pwd_confirm").value = "";
+}
+
+function skipPasswordChange(){
+  document.getElementById("pwd_modal").style.display = "none";
+  routeToRolePage(currentUser.role);
+}
+
+function checkPwdStrength(){
+  const pwd = document.getElementById("pwd_new").value;
+  const el  = document.getElementById("pwd_strength");
+  if(!pwd){ el.textContent=""; return; }
+  if(pwd.length < 6){ el.style.color="var(--red)"; el.textContent="Too short — minimum 6 characters"; return; }
+  const strong = pwd.length >= 8 && /[A-Z]/.test(pwd) && /[0-9]/.test(pwd);
+  const medium = pwd.length >= 6;
+  if(strong)      { el.style.color="var(--green)"; el.textContent="Strong ✓"; }
+  else if(medium) { el.style.color="var(--amber)"; el.textContent="OK — add numbers and capitals for stronger password"; }
+}
+
+async function saveNewPassword(){
+  const newPwd  = document.getElementById("pwd_new").value;
+  const confirm = document.getElementById("pwd_confirm").value;
+  const alertEl = document.getElementById("pwd_alert");
+
+  alertEl.className = "alert";
+  if(newPwd.length < 6){ alertEl.innerHTML="Minimum 6 characters."; alertEl.className="alert error show"; return; }
+  if(newPwd !== confirm){ alertEl.innerHTML="Passwords do not match."; alertEl.className="alert error show"; return; }
+  if(newPwd === "Karma2026!"){ alertEl.innerHTML="Please choose a different password — do not reuse the default."; alertEl.className="alert error show"; return; }
+
+  const saveBtn = document.querySelector("#pwd_modal .btn.primary");
+  if(saveBtn){ saveBtn.textContent="Saving…"; saveBtn.disabled=true; }
+
+  try {
+    const hashed = await hashPassword(newPwd);
+    await supa("staff?email=eq."+encodeURIComponent(currentUser.email), "PATCH",
+      { password_hash: hashed });
+    alertEl.innerHTML="Password updated successfully ✓";
+    alertEl.className="alert success show";
+    setTimeout(()=>{
+      document.getElementById("pwd_modal").style.display="none";
+      routeToRolePage(currentUser.role);
+    }, 1200);
+  } catch(err){
+    alertEl.innerHTML="Could not save — please try again.";
+    alertEl.className="alert error show";
+  } finally {
+    if(saveBtn){ saveBtn.textContent="Save password"; saveBtn.disabled=false; }
+  }
+}
+
+// SQL helper for admin to reset passwords (run in Supabase SQL editor)
+// update staff set password_hash = encode(digest('NewPass123', 'sha256'), 'hex')
+// where email = 'user@karmakandara.com';
+
 </script>
 </body>
 <
