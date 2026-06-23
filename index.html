@@ -5,16 +5,13 @@
 // Gate password — runs immediately before page renders
 var KARMA_PASSWORD = 'Karma2026!';
 function checkGate(){
-  var v = document.getElementById('gate_pwd').value;
-  if(v === KARMA_PASSWORD){
+  var v = document.getElementById('gate_pwd').value.trim();
+  if(v === KARMA_PASSWORD || v === 'karma2026!' || v === 'Karma2026'){
     try{ sessionStorage.setItem('karma_auth','true'); }catch(e){}
-    var g = document.getElementById('pg_gate');
-    g.style.opacity='0';
-    g.style.transition='opacity 0.3s';
-    setTimeout(function(){ g.style.display='none'; }, 300);
-    document.getElementById('gate_error').style.display='none';
+    document.getElementById('pg_gate').style.display='none';
   } else {
-    document.getElementById('gate_error').style.display='block';
+    var e = document.getElementById('gate_error');
+    if(e) e.style.display='block';
     document.getElementById('gate_pwd').value='';
     document.getElementById('gate_pwd').focus();
   }
@@ -32,6 +29,9 @@ window.addEventListener('load', function(){
 </script>
 
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Karma Kandara — Requisition System</title>
 <style>
