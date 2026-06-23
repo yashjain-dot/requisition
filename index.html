@@ -837,20 +837,65 @@ async function supaAudit(reqNumber, action, doneBy, role, notes) {
 // ── Email sending via Supabase Edge Function ─────────────────
 // Uses Resend API via Supabase — set up once in Supabase dashboard
 // Fallback: logs to console if not configured (test mode)
+// ── Email via Brevo API ─────────────────────────────────────
+const BREVO_KEY    = "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";
+const SENDER_EMAIL = "yash.jain@karmagroup.com"; // Must match verified sender in Brevo
+const SENDER_NAME  = "Karma Kandara Store";
+
 async function sendEmail({to, subject, body}) {
+  if(!to || !subject) return;
   try {
-    const res = await fetch(SUPA_URL + '/functions/v1/send-email', {
+    // Support multiple recipients (comma separated)
+    const recipients = to.split(';').map(e => e.trim()).filter(Boolean)
+      .map(email => ({ email }));
+
+    const payload = {
+      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+      to: recipients,
+      subject: subject,
+      textContent: body,
+      htmlContent: '<div style="font-family:Arial,sans-serif;font-size:14px;color:#1E1C1A;line-height:1.8;max-width:600px">'
+        + '<div style="background:#1E1C1A;padding:16px 24px;border-radius:8px 8px 0 0">'
+        + '<span style="font-family:Georgia,serif;font-size:22px;color:#B85C38;font-style:italic">Karma</span>'
+        + '<span style="font-family:Georgia,serif;font-size:22px;color:#fff"> Kandara</span>'
+        + '<span style="font-size:11px;color:#888;margin-left:12px;text-transform:uppercase;letter-spacing:1px">Storeroom Requisition</span>'
+        + '</div>'
+        + '<div style="padding:24px;background:#FDFCFA;border:1px solid #E5E5E3;border-top:none;border-radius:0 0 8px 8px">'
+        + body.split("\n").map(l => l ? '<p style="margin:4px 0">'+l+'</p>' : '<br>').join('')
+        + '<hr style="margin:20px 0;border:none;border-top:1px solid #E5E5E3">'
+        + '<p style="font-size:11px;color:#9A958F">Karma Kandara · Jalan Menjangan, Ungasan · Bali, Indonesia<br>'
+        + 'This is an automated notification from the Storeroom Requisition System.</p>'
+        + '</div></div>'
+    };
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer ' + SUPA_KEY,
-        'Content-Type': 'application/json'
+        'accept':       'application/json',
+        'api-key':      BREVO_KEY,
+        'content-type': 'application/json'
       },
-      body: JSON.stringify({ to, subject, body })
+      body: JSON.stringify(payload)
     });
-    if (res.ok) console.log('Email sent to:', to);
-    else console.warn('Email not sent (edge function not deployed yet):', to, subject);
+
+    if(res.ok) {
+      const data = await res.json();
+      console.log('✅ Email sent to:', to, '| msgId:', data.messageId);
+      showToast('Notification sent ✓', 'success');
+    } else {
+      const err = await res.text();
+      console.warn('⚠️ Brevo error:', err);
+    }
   } catch(err) {
-    console.log('Email would send to:', to, '|', subject);
+    console.warn('sendEmail error:', err);
+  }
+}
+
+// Send to multiple HODs (FB has two HODs)
+async function sendEmailMulti(emails, subject, body) {
+  const all = emails.split(';').map(e=>e.trim()).filter(Boolean);
+  for(const email of all) {
+    await sendEmail({to: email, subject, body});
   }
 }
 
@@ -1643,13 +1688,22 @@ function hOpenReview(id){
       <div style="background:var(--bg2);border-radius:var(--r);padding:8px 12px"><div style="font-size:10px;color:var(--muted)">Est. total</div><div style="font-weight:500;color:var(--brand)">${idr(grand)}</div></div>
       ${req.remarks?`<div style="background:var(--bg2);border-radius:var(--r);padding:8px 12px;grid-column:1/-1"><div style="font-size:10px;color:var(--muted)">Remarks</div><div style="font-weight:500">${req.remarks}</div></div>`:""}
     </div>`;
-  // Build item rows for HOD
+  // Build item rows for HOD — with editable item name + qty
   let html="";
   req.items.forEach((it,i)=>{
     const est=it.price*it.qty;
     const isEditable=req.status==="PENDING HOD";
     html+=`<div class="item-row hod-cols" id="hrow_${i}" style="margin-bottom:10px;align-items:center">
-      <div><div style="font-size:12px;font-weight:500">${it.name}</div><div style="font-size:10px;color:var(--muted)">${it.gl} · ${it.gln}</div></div>
+      <div>
+        ${isEditable
+          ? `<input type="text" class="cell-in" id="hname_${i}" value="${it.name}"
+               style="font-size:12px;font-weight:500;width:100%;margin-bottom:3px"
+               placeholder="Item name (edit if wrong)"
+               title="Edit item name if incorrectly submitted">`
+          : `<div style="font-size:12px;font-weight:500">${it.name}</div>`}
+        <div style="font-size:10px;color:var(--muted)">${it.gl||'—'} · ${it.gln||'—'}</div>
+        ${isEditable?`<div style="font-size:9px;color:var(--amber,#8C6914);margin-top:2px">✏ Edit name if incorrectly submitted</div>`:''}
+      </div>
       <div style="font-size:12px;text-align:center">${it.qty}</div>
       <div style="font-size:12px;text-align:center;color:var(--muted)">${it.unit}</div>
       <div style="font-size:12px">${idr(est)}</div>
@@ -1692,6 +1746,12 @@ function hSubmitDecision(){
   req.items.forEach((it,i)=>{
     const dec=document.getElementById("hdec_"+i)?.value||"approve";
     const qty=parseInt(document.getElementById("hqty_"+i)?.value)||it.qty;
+    // Capture edited item name if HOD changed it
+    const editedName=document.getElementById("hname_"+i)?.value?.trim();
+    if(editedName && editedName !== it.name){
+      it.originalName = it.name; // keep original for audit
+      it.name = editedName;
+    }
     it.decision=dec; it.approvedQty=dec==="reject"?0:qty;
     if(dec!=="reject") anyApproved=true; else anyRejected=true;
   });
@@ -1775,7 +1835,15 @@ function sOpenIssue(id){
     const estTotal=(it.price||it.cost||0)*appQty;
     if(it.decision==="reject") return;
     html+=`<div class="item-row store-cols" id="srow_${i}" style="margin-bottom:10px;align-items:center">
-      <div><div style="font-size:12px;font-weight:500">${it.name}</div><div style="font-size:10px;color:var(--muted)">${it.gl} · ${it.gln}</div></div>
+      <div>
+        ${isEditable
+          ? `<input type="text" class="cell-in" id="sname_${i}" value="${it.name}"
+               style="font-size:12px;font-weight:500;width:100%;margin-bottom:3px"
+               title="Edit item name if incorrect">`
+          : `<div style="font-size:12px;font-weight:500">${it.name}</div>`}
+        <div style="font-size:10px;color:var(--muted)">${it.gl||'—'} · ${it.gln||'—'}</div>
+        ${isEditable?`<div style="font-size:9px;color:var(--blue,#1A4D8C);margin-top:2px">✏ Edit name if incorrect</div>`:''}
+      </div>
       <div style="font-size:12px;text-align:center;font-weight:500">${appQty}</div>
       <div style="font-size:12px;text-align:center;color:var(--muted)">${it.unit}</div>
       ${isEditable
@@ -1817,6 +1885,9 @@ function sSubmitIssue(){
     if(it.decision==="reject") return;
     it.issuedQty=parseInt(document.getElementById("siqty_"+i)?.value)||0;
     it.cost=parseInt(document.getElementById("sucost_"+i)?.value)||it.price||0;
+    // Capture edited item name from store
+    const sname=document.getElementById("sname_"+i)?.value?.trim();
+    if(sname && sname !== it.name){ it.originalName=it.originalName||it.name; it.name=sname; }
   });
   req.status="ISSUED";
   req.store_name=currentUser.name;
@@ -1840,10 +1911,42 @@ function sSubmitIssue(){
       updateItemLine(req.id, it.name, { qty_issued: qty, unit_cost_idr: cost, line_total_idr: qty*cost });
     });
     supaAudit(req.id, 'STORE ISSUED', currentUser.name, 'store', 'IDR '+issuedTotal.toLocaleString());
-    sendEmail({to:'costcontrol@karmakandara.com',
-      subject:'💰 Post to GL: '+req.id+' — IDR '+issuedTotal.toLocaleString(),
-      body:'Items issued for '+req.id+'.\nDept: '+req.dept+'\nIssued by: '+currentUser.name+'\nTotal: IDR '+issuedTotal.toLocaleString()+'\n\nLog in to post GL:\nhttps://karmaresorts.github.io/requisition'});
-    showToast('Issuance saved & CC notified ✓','success');
+        // Build issued items summary for emails
+    const dept = req.dept||req.department||'';
+    const issuedSummary = req.items
+      .filter(it=>it.decision!=='reject' && it.issuedQty>0)
+      .map(it=>'  • '+it.name+' × '+it.issuedQty+' '+it.unit
+        +' @ IDR '+Number(it.cost).toLocaleString()
+        +' = IDR '+Number(it.issuedQty*it.cost).toLocaleString()
+        +' (GL '+(it.gl||'—')+')')
+      .join('\n');
+
+    const issueBase = 'Karma Kandara — Storeroom Requisition\n\n'
+      +'Requisition : '+req.id+'\n'
+      +'Department  : '+dept+'\n'
+      +'Requester   : '+(req.requester||req.requester_name||'')+'\n'
+      +'Issued by   : '+currentUser.name+'\n'
+      +'Issue date  : '+new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+'\n'
+      +'Total IDR   : IDR '+issuedTotal.toLocaleString()+'\n'
+      +'━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+      +'ITEMS ISSUED:\n'+issuedSummary+'\n\n'
+      +'Store notes : '+(req.store_notes||'None')+'\n';
+
+    // ACK to HOD — items have left the store
+    sendEmail({
+      to: getHODEmail(dept),
+      subject: '📦 Issued: '+req.id+' ['+dept+'] — IDR '+issuedTotal.toLocaleString(),
+      body: issueBase+'\nThis is an acknowledgement that items for your approved requisition have been issued from the storeroom. No further action required from you.\n\nKarma Kandara Store'
+    });
+
+    // Action email to Cost Controller
+    sendEmail({
+      to: 'costcontrol@karmakandara.com',
+      subject: '💰 Action required — Post GL: '+req.id+' ['+dept+'] — IDR '+issuedTotal.toLocaleString(),
+      body: issueBase+'\nACTION REQUIRED: Please log in and post the GL journal for this requisition.\n\nhttps://yashjain-dot.github.io/requisition\n\nKarma Kandara Store'
+    });
+
+    showToast('Issued — HOD acknowledged & CC notified ✓','success');
   });
 
   showAlert("s_iss_alert","Items issued successfully. Cost controller has been notified.","success");
