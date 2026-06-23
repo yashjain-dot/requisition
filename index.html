@@ -1719,46 +1719,27 @@ async function saveNewPassword(){
     </div>
   </div>
 </div>
-</body>
-</html
+
 <script>
-// ── GATE PASSWORD — change this to update access code ──────
 const KARMA_PASSWORD = 'Karma2026!';
-
-// Skip gate if already authenticated this session
 (function(){
-  try {
-    if(sessionStorage.getItem('karma_auth') === 'true'){
-      document.getElementById('pg_gate').style.display = 'none';
-    }
-  } catch(e){}
+  try{ if(sessionStorage.getItem('karma_auth')==='true') document.getElementById('pg_gate').style.display='none'; }catch(e){}
 })();
-
 function checkGate(){
-  const input = document.getElementById('gate_pwd').value;
-  const err   = document.getElementById('gate_error');
-  if(input === KARMA_PASSWORD){
-    try { sessionStorage.setItem('karma_auth','true'); } catch(e){}
-    const gate = document.getElementById('pg_gate');
-    gate.style.transition = 'opacity .3s ease';
-    gate.style.opacity = '0';
-    setTimeout(()=>{ gate.style.display='none'; }, 300);
-    if(err) err.style.display = 'none';
+  const v=document.getElementById('gate_pwd').value;
+  const e=document.getElementById('gate_error');
+  if(v===KARMA_PASSWORD){
+    try{sessionStorage.setItem('karma_auth','true');}catch(ex){}
+    const g=document.getElementById('pg_gate');
+    g.style.transition='opacity .3s';g.style.opacity='0';
+    setTimeout(()=>g.style.display='none',300);
+    if(e)e.style.display='none';
   } else {
-    if(err) err.style.display = 'block';
-    document.getElementById('gate_pwd').value = '';
+    if(e)e.style.display='block';
+    document.getElementById('gate_pwd').value='';
     document.getElementById('gate_pwd').focus();
-    // Shake
-    const card = document.querySelector('#pg_gate .gate-card');
-    if(card){
-      card.style.transition='transform .08s';
-      let n=0;
-      const shake=setInterval(()=>{
-        card.style.transform = n%2===0?'translateX(6px)':'translateX(-6px)';
-        n++; if(n>5){ clearInterval(shake); card.style.transform='none'; }
-      },80);
-    }
   }
 }
 </script>
->
+</body>
+</html>
